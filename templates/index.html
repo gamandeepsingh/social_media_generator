@@ -99,17 +99,17 @@
     <div class="container">
         <h1>Social Media Content Generator</h1>
         <p>Generate anime-style videos with inspiring quotes for your social media content.</p>
-        
+
         <div class="controls">
             <input type="text" id="theme" placeholder="Enter a theme (optional, e.g., 'success', 'nature', 'friendship')">
             <button id="generate-btn">Generate Content</button>
         </div>
-        
+
         <div class="loading" id="loading">
             <div class="loading-spinner"></div>
             <p>Generating your content... This may take several minutes.</p>
         </div>
-        
+
         <div class="result" id="result">
             <h2>Generated Content:</h2>
             <div class="quote" id="quote"></div>
@@ -129,13 +129,13 @@
             const resultElement = document.getElementById('result');
             const quoteElement = document.getElementById('quote');
             const videoElement = document.getElementById('video');
-            
+
             generateBtn.addEventListener('click', async function() {
                 // Disable button and show loading
                 generateBtn.disabled = true;
                 loadingElement.style.display = 'block';
                 resultElement.style.display = 'none';
-                
+
                 try {
                     // Call API to generate content
                     const response = await fetch('/generate', {
@@ -147,9 +147,9 @@
                             theme: themeInput.value
                         }),
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (data.status === 'error') {
                         alert('Error: ' + data.message);
                         quoteElement.textContent = data.quote || 'No quote generated';

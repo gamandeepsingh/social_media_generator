@@ -2,41 +2,20 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from content_creator import ContentCreationModel
 import os
 import uuid
-import logging
 from pyngrok import ngrok
-import subprocess
-
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
+import logging
 app = Flask(__name__)
 
-# Configure ngrok
-def setup_ngrok():
-    try:
-        auth_token = os.getenv("NGROK_AUTH_TOKEN")
-        if not auth_token:
-            logger.warning("No NGROK_AUTH_TOKEN environment variable found. Please set it.")
-            return False
-        
-        ngrok.set_auth_token(auth_token)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+app = Flask(__name__)
 
-        # Check if there's already an authtoken in the config
-        result = subprocess.run(['ngrok', 'config', 'check'], capture_output=True, text=True)
-        if 'authtoken:' not in result.stdout:
-            logger.info("Setting ngrok authtoken...")
-            subprocess.run(['ngrok', 'config', 'add-authtoken', auth_token])
-            logger.info("Ngrok authtoken added successfully")
-        else:
-            logger.info("Ngrok authtoken already configured")
-        return True
-    except Exception as e:
-        logger.error(f"Error setting up ngrok: {e}")
-        return False
+# Set your ngrok authtoken
+ngrok.set_auth_token("2wIpkzyxu6S3TfvUOmC9NuSYZvb_3aes6FBrNBz3rsBWg6T63")
 
-# Initialize content model (lazy loading)
-content_model = None
+# Initialize your model
+content_model = ContentCreationModel(use_api_for_text=True)
 
 @app.route('/')
 def index():
@@ -74,6 +53,13 @@ def generate_content():
                 'quote': result['quote']
             }), 500
 
+        if not result.get('video_path'):
+            return jsonify({
+                'status': 'error',
+                'message': "Video generation failed",
+                'quote': result['quote']
+            }), 500
+
         return jsonify({
             'status': 'success',
             'quote': result['quote'],
@@ -93,10 +79,10 @@ def serve_video(filename):
 
 if __name__ == '__main__':
     os.makedirs('static/videos', exist_ok=True)
+    
+    # Start Flask app in a thread
+    port = 5000
+    public_url = ngrok.connect(port)
+    print(f" * ngrok tunnel available at: {public_url}")
 
-    if setup_ngrok():
-        public_url = ngrok.connect(5000)
-        logger.info(f" * ngrok tunnel URL: {public_url}")
-
-    logger.info("Starting Flask application...")
-    app.run()
+    app.run(port=port)
