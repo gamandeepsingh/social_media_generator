@@ -273,57 +273,77 @@ class ContentCreationModel:
         return img
 
     def create_video(self, images, quote, output_path="output_video.mp4"):
-        """Create a video from the generated images with text overlay"""
+        """Create a video from the generated images with text overlay using OpenCV"""
         try:
-            import imageio
-            import moviepy.editor as mpy
+            import cv2
+            import numpy as np
             
             # Create folder if it doesn't exist
             os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-
-            logger.info("Creating video from images...")
+            
+            logger.info("Creating video from images using OpenCV...")
             
             # Add text overlay to images
-            images_with_text = [self.add_text_to_image(img, quote) for img in images]
+            processed_images = []
+            for img in images:
+                try:
+                    processed_img = self.add_text_to_image(img, quote)
+                    processed_images.append(processed_img)
+                except Exception as e:
+                    logger.error(f"Error processing image: {e}")
+                    processed_images.append(img)  # Use original if processing fails
+
+            if not processed_images:
+                logger.error("No valid images available for video creation")
+                return None
+
+            # Get image dimensions from first image
+            height, width = processed_images[0].size[1], processed_images[0].size[0]
             
-            # Create clips from images
-            clips = []
-            for img in images_with_text:
-                # Convert PIL image to numpy array
-                img_array = np.array(img)
-                # Create a clip that displays for 2.5 seconds
-                clip = mpy.ImageClip(img_array).set_duration(2.5)
-                clips.append(clip)
+            # Define video codec and create VideoWriter object
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # MP4 codec
+            fps = 24  # Frames per second
+            duration_per_image = 2.5  # seconds per image
+            frames_per_image = int(fps * duration_per_image)
             
-            # Concatenate clips
-            final_clip = mpy.concatenate_videoclips(clips, method="compose")
-            
-            # Add simple fade transitions
-            final_clip = final_clip.fadein(0.5).fadeout(0.5)
-            
-            # Add background music (optional)
-            # If you want to add background music, you would need a music file
-            # audio = mpy.AudioFileClip("path_to_music.mp3")
-            # audio = audio.set_duration(final_clip.duration)
-            # final_clip = final_clip.set_audio(audio)
-            
-            # Write video file
-            final_clip.write_videofile(
-                output_path, 
-                fps=24, 
-                codec="libx264", 
-                audio_codec="aac" if hasattr(final_clip, 'audio') else None,
-                preset="ultrafast",  # Use "medium" for better quality but slower encoding
-                threads=4
+            video_writer = cv2.VideoWriter(
+                output_path,
+                fourcc,
+                fps,
+                (width, height)
             )
             
-            logger.info(f"Video created and saved to {output_path}")
+            if not video_writer.isOpened():
+                logger.error("Could not open video writer")
+                return None
+
+            # Convert PIL Images to OpenCV format and write frames
+            for img in processed_images:
+                # Convert PIL Image to OpenCV format (RGB to BGR)
+                cv_image = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+                
+                # Write the same image for multiple frames to create duration
+                for _ in range(frames_per_image):
+                    video_writer.write(cv_image)
+            
+            # Release the video writer
+            video_writer.release()
+            
+            logger.info(f"Video created successfully at {output_path}")
             return output_path
             
         except Exception as e:
-            logger.error(f"Error creating video: {e}")
+            logger.error(f"Error in video creation with OpenCV: {e}")
+            # Fallback: save first image as JPEG
+            if images and len(images) > 0:
+                try:
+                    fallback_path = output_path.replace('.mp4', '.jpg')
+                    images[0].save(fallback_path)
+                    logger.info(f"Saved fallback image to {fallback_path}")
+                    return fallback_path
+                except Exception as fallback_error:
+                    logger.error(f"Fallback image save failed: {fallback_error}")
             return None
-    
     def generate_content(self, theme=None, output_path="static/videos/content.mp4"):
         """Main function to generate complete social media content
 
