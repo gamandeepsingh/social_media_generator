@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Set your ngrok authtoken
-ngrok.set_auth_token("2wIpkzyxu6S3TfvUOmC9NuSYZvb_3aes6FBrNBz3rsBWg6T63")
+ngrok.set_auth_token(os.getenv("AUTH_API_KEY"))
 
 # Initialize your model
 content_model = ContentCreationModel(use_api_for_text=True)
